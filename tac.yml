@@ -1,0 +1,99 @@
+x-logging: &logging
+  logging:
+    driver: json-file
+    options:
+      max-size: 100m
+      max-file: "3"
+      tag: '{{.ImageName}}|{{.Name}}|{{.ImageFullID}}|{{.FullID}}'
+
+services:
+  tac:
+    build:
+      context: ./tac
+      dockerfile: Dockerfile.source
+      args:
+        - DAEMON_VERSION=${TACCHAIND_TAG}
+        - USER=tac
+    image: tac:local
+    pull_policy: never
+    user: tac
+    restart: unless-stopped
+    stop_grace_period: 5m
+    environment:
+      - EXTRA_FLAGS=${EXTRA_FLAGS:-}
+      - NETWORK=${NETWORK}
+      - MONIKER=${MONIKER}
+      - CL_GRPC_PORT=${CL_GRPC_PORT:-9090}
+      - CL_P2P_PORT=${CL_P2P_PORT:-58960}
+      - CL_RPC_PORT=${CL_RPC_PORT:-26657}
+      - REST_API_PORT=${REST_API_PORT:-1317}
+      - RPC_PORT=${RPC_PORT:-45138}
+      - WS_PORT=${WS_PORT:-45139}
+      - SNAPSHOT=${SNAPSHOT}
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+      - FRESH_INIT_WITH_DATA=${FRESH_INIT_WITH_DATA:-false}
+      - PERSISTENT_PEERS=${PERSISTENT_PEERS}
+    ports:
+      - ${CL_P2P_PORT:-58960}:${CL_P2P_PORT:-58960}/tcp
+      - ${CL_RPC_PORT:-26657}:${CL_RPC_PORT:-26657}/tcp
+    <<: *logging
+    volumes:
+      - consensus-data:/cosmos
+    entrypoint:
+      - docker-entrypoint.sh
+      - tacchaind
+      - start
+      - --home
+      - /cosmos
+      - --chain-id
+      - $NETWORK
+      - --log_format
+      - json
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.${RPC_HOST}.service=${RPC_HOST}
+      - traefik.http.routers.${RPC_HOST}.entrypoints=websecure
+      - traefik.http.routers.${RPC_HOST}.rule=Host(`${RPC_HOST}.${DOMAIN}`)
+      - traefik.http.routers.${RPC_HOST}.tls.certresolver=letsencrypt
+      - traefik.http.routers.${RPC_HOST}lb.service=${RPC_HOST}
+      - traefik.http.routers.${RPC_HOST}lb.entrypoints=websecure
+      - traefik.http.routers.${RPC_HOST}lb.rule=Host(`${RPC_LB}.${DOMAIN}`)
+      - traefik.http.routers.${RPC_HOST}lb.tls.certresolver=letsencrypt
+      - traefik.http.services.${RPC_HOST}.loadbalancer.server.port=${RPC_PORT}
+      - traefik.http.routers.${WS_HOST:-tacws}.service=${WS_HOST:-tacws}
+      - traefik.http.routers.${WS_HOST:-tacws}.entrypoints=websecure
+      - traefik.http.routers.${WS_HOST:-tacws}.rule=Host(`${WS_HOST:-tacws}.${DOMAIN}`)
+      - traefik.http.routers.${WS_HOST:-tacws}.tls.certresolver=letsencrypt
+      - traefik.http.routers.${WS_HOST:-tacws}lb.service=${WS_HOST:-tacws}
+      - traefik.http.routers.${WS_HOST:-tacws}lb.entrypoints=websecure
+      - traefik.http.routers.${WS_HOST:-tacws}lb.rule=Host(`${WS_LB:-tacws-lb}.${DOMAIN}`)
+      - traefik.http.routers.${WS_HOST:-tacws}lb.tls.certresolver=letsencrypt
+      - traefik.http.services.${WS_HOST:-tacws}.loadbalancer.server.port=${WS_PORT:-45139}
+      - metrics.scrape=true
+      - metrics.path=/metrics
+      - metrics.port=26660
+      - metrics.instance=tac
+      - metrics.network=${NETWORK}
+
+  cli:
+    profiles: ["tools"]
+    build:
+      context: ./tac
+      dockerfile: Dockerfile.source
+      args:
+        - DAEMON_VERSION=${TACCHAIND_TAG}
+        - USER=tac
+    image: tac:local
+    pull_policy: never
+    user: tac
+    environment:
+      - NETWORK=${NETWORK}
+      - MONIKER=${MONIKER}
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+    volumes:
+      - consensus-data:/cosmos
+    entrypoint:
+      - tacchaind
+
+volumes:
+  consensus-data:

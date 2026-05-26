@@ -1,0 +1,68 @@
+# Get dasel for TOML config editing
+FROM ghcr.io/tomwright/dasel:2-alpine AS dasel
+
+# Stage 1: Build tacchaind from source
+FROM golang:1.23-bookworm AS builder
+
+ARG DAEMON_VERSION
+
+WORKDIR /build
+
+# Clone tacchain repository and checkout version
+RUN git clone https://github.com/TacBuild/tacchain.git . \
+    && git checkout "tags/${DAEMON_VERSION}"
+
+# Build with rpath so .so files can be found alongside the binary
+# shellcheck disable=SC2016
+RUN make build LDFLAGS='-extldflags "-Wl,-rpath,$$ORIGIN"'
+
+# Collect .so files needed at runtime (libwasmvm)
+ARG TARGETARCH
+RUN mkdir -p /build/libs \
+    && if [ "$TARGETARCH" = "amd64" ]; then __arch="x86_64"; else __arch="aarch64"; fi \
+    && find /build/ -type f -name "libwasmvm*.$__arch.so" -exec cp '{}' /build/libs/ \; || true
+
+# Stage 2: Runtime
+FROM debian:bookworm-slim
+
+ARG USER=tac
+ARG UID=1000
+
+# Install runtime dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates tzdata bash curl wget lz4 jq tar aria2 \
+    && rm -rf /var/lib/apt/lists/*
+
+VOLUME /cosmos
+
+# Create non-root user
+RUN adduser \
+    --disabled-password \
+    --gecos "" \
+    --shell "/sbin/nologin" \
+    --uid "${UID}" \
+    "${USER}"
+
+# Create data directories
+RUN mkdir -p /cosmos/config /cosmos/data \
+    && chown -R ${USER}:${USER} /cosmos && chmod -R 700 /cosmos
+
+# Copy tacchaind binary and shared libraries
+COPY --from=builder /build/build/tacchaind /usr/local/bin/tacchaind
+COPY --from=builder /build/libs/ /usr/local/lib/
+
+# Copy dasel for TOML config editing
+COPY --from=dasel /usr/local/bin/dasel /usr/local/bin/
+
+# Update shared library cache
+RUN ldconfig
+
+# Copy entrypoint script
+COPY ./docker-entrypoint.sh /usr/local/bin/
+
+# Make scripts executable
+RUN chmod -R 755 /usr/local/bin/*
+
+USER ${USER}
+
+ENTRYPOINT ["docker-entrypoint.sh"]
