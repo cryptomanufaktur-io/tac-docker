@@ -1,0 +1,6 @@
+# To be used with tac.yml
+services:
+  tac:
+    ports:
+      - ${RPC_PORT:-45138}:${RPC_PORT:-45138}/tcp
+      - ${WS_PORT:-45139}:${WS_PORT:-45139}/tcp

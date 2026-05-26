@@ -1,0 +1,27 @@
+# Environment files
+.env
+.env.source
+.env.tmp
+
+# Docker volumes
+data/
+
+# Logs
+*.log
+
+# Temporary files
+*.tmp
+*.swp
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.code-workspace
+.notes/
+.claude/
+CLAUDE.md
