@@ -70,7 +70,7 @@ dasel put -f /cosmos/config/config.toml -v '["Origin","Accept","Content-Type","X
 dasel put -f /cosmos/config/app.toml -v "0.0.0.0:${RPC_PORT}" json-rpc.address
 dasel put -f /cosmos/config/app.toml -v "0.0.0.0:${WS_PORT}" json-rpc.ws-address
 dasel put -f /cosmos/config/app.toml -v true json-rpc.enable
-dasel put -f /cosmos/config/app.toml -v '["eth","net","web3","txpool","debug"]' json-rpc.api
+dasel put -f /cosmos/config/app.toml -v "eth,net,web3,txpool,debug" json-rpc.api
 
 # Configure gRPC
 dasel put -f /cosmos/config/app.toml -v "0.0.0.0:${CL_GRPC_PORT}" grpc.address
@@ -82,6 +82,9 @@ dasel put -f /cosmos/config/app.toml -v true api.enable
 
 # Configure minimum gas prices
 dasel put -f /cosmos/config/app.toml -v "25000000000utac" minimum-gas-prices
+
+# Configure pruning
+dasel put -f /cosmos/config/app.toml -v "default" pruning
 
 # Configure client
 dasel put -f /cosmos/config/client.toml -v "tcp://0.0.0.0:${CL_RPC_PORT}" node
