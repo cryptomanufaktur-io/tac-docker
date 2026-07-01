@@ -106,7 +106,7 @@ The `tacd` script provides a convenient CLI for managing your node:
 
 To upgrade to a new tacchaind version:
 
-1. Update `TACCHAIND_TAG` in `.env` to the desired version tag (e.g., `v1.0.4`)
+1. Update `TACCHAIND_TAG` in `.env` to the desired version tag (e.g., `v1.6.0`)
 2. Rebuild the Docker image:
 ```bash
 ./tacd update
